@@ -51,7 +51,7 @@ function stationsUrl(bbox: string): string {
 function ipUrl(): string {
   return isDev
     ? '/api/ip'
-    : corsProxy('https://ipapi.co/json/');
+    : corsProxy('http://ip-api.com/json');
 }
 
 // ── Module-level state ───────────────────────────────────────
@@ -136,23 +136,9 @@ interface IpLocation { lat: number; lon: number; city: string; regionName: strin
 async function fetchUserLocation(): Promise<IpLocation> {
   const res = await fetch(ipUrl());
   if (!res.ok) throw new Error(`IP geolocation failed: ${res.status}`);
-  const data = await res.json();
-
-  // ip-api.com (dev proxy) returns { status, lat, lon, city, regionName }
-  // ipapi.co (prod) returns { ip, city, region, latitude, longitude, ... }
-  if (isDev) {
-    if (data.status !== 'success') throw new Error('IP geolocation returned failure status');
-    return data as IpLocation;
-  } else {
-    if (data.error) throw new Error(data.reason || 'IP geolocation failed');
-    return {
-      lat: data.latitude,
-      lon: data.longitude,
-      city: data.city,
-      regionName: data.region,
-      status: 'success',
-    };
-  }
+  const data = await res.json() as IpLocation;
+  if (data.status !== 'success') throw new Error('IP geolocation returned failure status');
+  return data;
 }
 
 // Converts nautical miles to degrees of latitude (approx).
