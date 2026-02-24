@@ -569,9 +569,14 @@ async function main() {
     selectTabFromGlassesMenu(nextTab).catch(console.error);
   });
 
-  // Initialise bridge
+  // Initialise bridge (with timeout so the app doesn't hang if glasses aren't available)
   try {
-    activeBridge = await waitForEvenAppBridge();
+    activeBridge = await Promise.race([
+      waitForEvenAppBridge(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Bridge timeout')), 5000)
+      ),
+    ]);
     setGlassesStatus(true);
     setStatus('Glasses connected. Loading settings...');
 
@@ -636,7 +641,7 @@ async function main() {
 
   } catch {
     setGlassesStatus(false);
-    setStatus('Glasses not connected — settings will be applied when connected');
+    setStatus('No glasses — use the browser to view weather');
     (document.getElementById('station-1') as HTMLInputElement).value = currentStations1.join(', ');
   }
 }
