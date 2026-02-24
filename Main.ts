@@ -51,7 +51,7 @@ function stationsUrl(bbox: string): string {
 function ipUrl(): string {
   return isDev
     ? '/api/ip'
-    : 'https://ipapi.co/json/';
+    : corsProxy('https://ipapi.co/json/');
 }
 
 // ── Module-level state ───────────────────────────────────────
