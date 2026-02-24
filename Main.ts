@@ -503,6 +503,23 @@ async function selectTabFromGlassesMenu(tab: TabIndex): Promise<void> {
 // ── Main ─────────────────────────────────────────────────────
 
 async function main() {
+  // Invert scroll direction (wheel + touch)
+  document.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    window.scrollBy(0, -e.deltaY);
+  }, { passive: false });
+
+  let touchStartY = 0;
+  document.addEventListener('touchstart', (e) => {
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const deltaY = e.touches[0].clientY - touchStartY;
+    window.scrollBy(0, deltaY);  // inverted: drag down → scroll up
+    touchStartY = e.touches[0].clientY;
+  }, { passive: false });
+
   // Browser tab bar — switches settings panel and fetches for browser results only.
   document.querySelectorAll<HTMLButtonElement>('.tab-btn').forEach((btn, i) => {
     btn.addEventListener('click', () => {
