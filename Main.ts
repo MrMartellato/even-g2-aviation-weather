@@ -24,26 +24,28 @@ const STORAGE_KEY_TAF_NEARBY = 'wx_taf_nearby';
 const NEARBY_RADIUS_NM = 75;
 const NEARBY_MAX_STATIONS = 5;
 
-// ── API URL helpers (proxy in dev, direct in prod) ───────────
+// ── API URL helpers (proxy in dev, CORS proxy in prod) ───────
 
 const isDev = import.meta.env.DEV;
 
+/** In production, route through a CORS proxy since aviationweather.gov blocks cross-origin requests. */
+function corsProxy(url: string): string {
+  return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+}
+
 function metarUrl(ids: string): string {
-  return isDev
-    ? `/api/metar?ids=${encodeURIComponent(ids)}&format=json`
-    : `https://aviationweather.gov/api/data/metar?ids=${encodeURIComponent(ids)}&format=json`;
+  const direct = `https://aviationweather.gov/api/data/metar?ids=${encodeURIComponent(ids)}&format=json`;
+  return isDev ? `/api/metar?ids=${encodeURIComponent(ids)}&format=json` : corsProxy(direct);
 }
 
 function tafUrl(ids: string): string {
-  return isDev
-    ? `/api/taf?ids=${encodeURIComponent(ids)}&format=json`
-    : `https://aviationweather.gov/api/data/taf?ids=${encodeURIComponent(ids)}&format=json`;
+  const direct = `https://aviationweather.gov/api/data/taf?ids=${encodeURIComponent(ids)}&format=json`;
+  return isDev ? `/api/taf?ids=${encodeURIComponent(ids)}&format=json` : corsProxy(direct);
 }
 
 function stationsUrl(bbox: string): string {
-  return isDev
-    ? `/api/stations?bbox=${encodeURIComponent(bbox)}&format=json`
-    : `https://aviationweather.gov/api/data/stationInfo?bbox=${encodeURIComponent(bbox)}&format=json`;
+  const direct = `https://aviationweather.gov/api/data/stationInfo?bbox=${encodeURIComponent(bbox)}&format=json`;
+  return isDev ? `/api/stations?bbox=${encodeURIComponent(bbox)}&format=json` : corsProxy(direct);
 }
 
 function ipUrl(): string {
