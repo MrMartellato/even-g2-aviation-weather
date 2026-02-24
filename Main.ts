@@ -130,15 +130,40 @@ async function fetchTafs(stations: string[]): Promise<Map<string, string>> {
   return map;
 }
 
-// Returns the user's approximate lat/lon from IP geolocation.
-interface IpLocation { lat: number; lon: number; city: string; regionName: string; status: string; }
+// Returns the user's location: GPS first, IP fallback.
+interface UserLocation { lat: number; lon: number; label: string; }
 
-async function fetchUserLocation(): Promise<IpLocation> {
+function getGpsPosition(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation API not available'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: false,
+      timeout: 10000,
+      maximumAge: 300000, // cache for 5 minutes
+    });
+  });
+}
+
+async function fetchUserLocation(): Promise<UserLocation> {
+  // Try GPS first (works in Even Hub webview and browsers)
+  try {
+    const pos = await getGpsPosition();
+    const lat = Math.round(pos.coords.latitude * 100) / 100;
+    const lon = Math.round(pos.coords.longitude * 100) / 100;
+    return { lat, lon, label: `${lat.toFixed(2)}°, ${lon.toFixed(2)}°` };
+  } catch (gpsErr) {
+    console.warn('GPS failed, trying IP fallback:', gpsErr);
+  }
+
+  // Fall back to IP geolocation
   const res = await fetch(ipUrl());
-  if (!res.ok) throw new Error(`IP geolocation failed: ${res.status}`);
-  const data = await res.json() as IpLocation;
-  if (data.status !== 'success') throw new Error('IP geolocation returned failure status');
-  return data;
+  if (!res.ok) throw new Error(`Location detection failed: ${res.status}`);
+  const data = await res.json();
+  if (data.status !== 'success') throw new Error('Could not determine location');
+  return { lat: data.lat, lon: data.lon, label: `${data.city}, ${data.regionName}` };
 }
 
 // Converts nautical miles to degrees of latitude (approx).
@@ -372,16 +397,16 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
     setStatus('Finding your location...');
     try {
       const loc = await fetchUserLocation();
-      setNearbyState('loading', `Finding stations near ${loc.city}, ${loc.regionName}...`);
-      setStatus(`Finding stations near ${loc.city}, ${loc.regionName}...`);
+      setNearbyState('loading', `Finding stations near ${loc.label}...`);
+      setStatus(`Finding stations near ${loc.label}...`);
 
       const stations = await fetchNearbyStationIds(loc.lat, loc.lon, NEARBY_RADIUS_NM, NEARBY_MAX_STATIONS);
       cachedNearbyStations = stations;
 
       if (stations.length === 0) {
-        setNearbyState('error', `No METAR stations found within ${NEARBY_RADIUS_NM} nm of ${loc.city}.`);
+        setNearbyState('error', `No METAR stations found within ${NEARBY_RADIUS_NM} nm of ${loc.label}.`);
         setStatus('No nearby stations found');
-        cachedContent[0] = `No METAR stations within\n${NEARBY_RADIUS_NM} nm of ${loc.city}.`;
+        cachedContent[0] = `No METAR stations within\n${NEARBY_RADIUS_NM} nm of ${loc.label}.`;
         if (glassesInitialised && appState === 'weather' && currentTab === 0)
           await updateGlassesText(buildGlassesPage(0, cachedContent[0]));
         return;
@@ -401,9 +426,9 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
         taf: tafMap.get(s) ?? null,
       }));
 
-      renderResults(results, currentIncludeTafNearby, `Nearby (${loc.city})`);
+      renderResults(results, currentIncludeTafNearby, `Nearby (${loc.label})`);
       setNearbyState('ready');
-      setStatus(`Nearby stations for ${loc.city}, ${loc.regionName}`);
+      setStatus(`Nearby stations for ${loc.label}`);
 
       const glassesContent = results
         .flatMap((r) => {
@@ -414,7 +439,7 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
         })
         .join('\n\n');
 
-      cachedContent[0] = glassesContent || `Nearby ${loc.city}:\nNo data.`;
+      cachedContent[0] = glassesContent || `Nearby ${loc.label}:\nNo data.`;
       if (glassesInitialised && appState === 'weather' && currentTab === 0)
         await updateGlassesText(buildGlassesPage(0, cachedContent[0]));
 
