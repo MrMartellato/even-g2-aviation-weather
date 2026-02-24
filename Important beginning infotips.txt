@@ -1,0 +1,25 @@
+**Important beginning info/tips** 
+
+**1.  Your 'app' is essentially just a website.** It runs through the Even app or your browser, so developing for the Even Hub is very similar to standard web dev, just with the added Even Hub stuff.
+**2. The website/app runs on TypeScript, which is a fork of JavaScript.** This means it uses NPM packages that are installed to the project directly, meaning you don't really have to worry about installing dependancies. That being said, if you move to a new IDE or computer, you can run `npm install` to install all project dependancies. 
+
+**Installing the Even Hub CLI:**  `sudo npm install -g @evenrealities/evenhub-cli` 
+The `-g` installs it globally, allowing you to use the tool from anywhere on your system, including any IDE like VSCode, Cursor, or anything else. Also, the command might vary by operating system, on Windows you do not need the `sudo` part, but you do on MacOS or Linux
+
+**Installing the Even Hub SDK in your project:** `npm install @evenrealities/even_hub_sdk`
+You can add the `-g` here but it isn't necessary
+
+**Installing the Even Hub Simulator** `sudo npm install -g @evenrealities/evenhub-simulator` This installs the CLI tool to start the simulator.
+
+**Creating your app:**As I mentioned, your app is effectively just a website, so it is developed using HTML, CSS, and JavaScript, or in this case TypeScript. The first step is be creating a file named `index.html` in the root directory of your project, meaning it isn't in any subfolders. This step is **required**, as this is what the Even Hub looks for first when running the app. Inside that file, you add all the essential bits for a website, and add in any buttons or text you want. From there, you can create a `Main.ts` file that houses your actual "code". To have this run when you start the app, add something like `<script type="module" src="/path/to/Main.ts"></script>` to the `body` of your HTML file. This runs the "script" when you launch the app/website by any means.
+
+**Running your app:** You need to first create a web server for the Even Hub app or the simulator to latch onto. You can do this with a tool called Vite, installed with `sudo npm install -g vite@latest` and adding it to your project. A good explaination can be found on youtube, [like this video](https://youtu.be/89NJdbYTgJ8?t=434). To launch the app, run `vite` with the added `-i [YOUR IP]` to specify the host IP, and `-p [PORT]` to specify a port
+
+**Using the SDK:** `import { waitForEvenAppBridge } from '@evenrealities/even_hub_sdk'` 
+This imports the bridge which functions as the communication between your app/website and the glasses
+
+**Using the Even Hub Simulator:** After you get Vite working and you can open it in a browser to view your 'website', you can run `evenhub-simulator [YOUR VITE IP HERE]` in a new terminal window in your IDE to open the website in the simulator. Effectively, you need to keep one window open at all times with the Vite thing running, while you use a different window to open the even hub sim. The simulator also opens up a temporary browser window that displays what the website looks like inside the mobile app, helping you work on your UI in a more mobile-friendly way.
+
+**App design:** Even has a published Figma page detailing all their design, including all the tiny details like page margin and color codes. You can find this [here](https://www.figma.com/design/X82y5uJvqMH95jgOfmV34j/Even-Realities---Software-Design-Guidelines--Public-), and once again like I mentioned in the tips, you can give an AI assistant this figma link and it'll read over it and help you refine your app to fit the documentation. 
+
+If anyone has any other things to add to this, let me or <@1426422084937977949>  know and we can try to help!
