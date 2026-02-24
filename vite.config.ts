@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  base: '/even-g2-aviation-weather/',
   server: {
     proxy: {
       '/api/metar': {
