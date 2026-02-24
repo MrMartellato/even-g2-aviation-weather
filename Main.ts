@@ -24,6 +24,34 @@ const STORAGE_KEY_TAF_NEARBY = 'wx_taf_nearby';
 const NEARBY_RADIUS_NM = 75;
 const NEARBY_MAX_STATIONS = 5;
 
+// ── API URL helpers (proxy in dev, direct in prod) ───────────
+
+const isDev = import.meta.env.DEV;
+
+function metarUrl(ids: string): string {
+  return isDev
+    ? `/api/metar?ids=${encodeURIComponent(ids)}&format=json`
+    : `https://aviationweather.gov/api/data/metar?ids=${encodeURIComponent(ids)}&format=json`;
+}
+
+function tafUrl(ids: string): string {
+  return isDev
+    ? `/api/taf?ids=${encodeURIComponent(ids)}&format=json`
+    : `https://aviationweather.gov/api/data/taf?ids=${encodeURIComponent(ids)}&format=json`;
+}
+
+function stationsUrl(bbox: string): string {
+  return isDev
+    ? `/api/stations?bbox=${encodeURIComponent(bbox)}&format=json`
+    : `https://aviationweather.gov/api/data/stationInfo?bbox=${encodeURIComponent(bbox)}&format=json`;
+}
+
+function ipUrl(): string {
+  return isDev
+    ? '/api/ip'
+    : 'https://ipapi.co/json/';
+}
+
 // ── Module-level state ───────────────────────────────────────
 
 let activeBridge: EvenAppBridge | null = null;
@@ -78,7 +106,7 @@ function parseStations(input: string): string[] {
 
 async function fetchMetars(stations: string[]): Promise<Map<string, string>> {
   const ids = stations.join(',');
-  const res = await fetch(`/api/metar?ids=${encodeURIComponent(ids)}&format=json`);
+  const res = await fetch(metarUrl(ids));
   if (!res.ok) throw new Error(`METAR fetch failed: ${res.status}`);
   const data = await res.json();
   const map = new Map<string, string>();
@@ -90,7 +118,7 @@ async function fetchMetars(stations: string[]): Promise<Map<string, string>> {
 
 async function fetchTafs(stations: string[]): Promise<Map<string, string>> {
   const ids = stations.join(',');
-  const res = await fetch(`/api/taf?ids=${encodeURIComponent(ids)}&format=json`);
+  const res = await fetch(tafUrl(ids));
   if (!res.ok) throw new Error(`TAF fetch failed: ${res.status}`);
   const data = await res.json();
   const map = new Map<string, string>();
@@ -104,11 +132,25 @@ async function fetchTafs(stations: string[]): Promise<Map<string, string>> {
 interface IpLocation { lat: number; lon: number; city: string; regionName: string; status: string; }
 
 async function fetchUserLocation(): Promise<IpLocation> {
-  const res = await fetch('/api/ip');
+  const res = await fetch(ipUrl());
   if (!res.ok) throw new Error(`IP geolocation failed: ${res.status}`);
-  const data = await res.json() as IpLocation;
-  if (data.status !== 'success') throw new Error('IP geolocation returned failure status');
-  return data;
+  const data = await res.json();
+
+  // ip-api.com (dev proxy) returns { status, lat, lon, city, regionName }
+  // ipapi.co (prod) returns { ip, city, region, latitude, longitude, ... }
+  if (isDev) {
+    if (data.status !== 'success') throw new Error('IP geolocation returned failure status');
+    return data as IpLocation;
+  } else {
+    if (data.error) throw new Error(data.reason || 'IP geolocation failed');
+    return {
+      lat: data.latitude,
+      lon: data.longitude,
+      city: data.city,
+      regionName: data.region,
+      status: 'success',
+    };
+  }
 }
 
 // Converts nautical miles to degrees of latitude (approx).
@@ -149,7 +191,7 @@ async function fetchNearbyStationIds(
   const maxLon = lon + lonDeg;
   const bbox = `${minLat.toFixed(4)},${minLon.toFixed(4)},${maxLat.toFixed(4)},${maxLon.toFixed(4)}`;
 
-  const res = await fetch(`/api/stations?bbox=${encodeURIComponent(bbox)}&format=json`);
+  const res = await fetch(stationsUrl(bbox));
   if (!res.ok) throw new Error(`Station lookup failed: ${res.status}`);
   const data = await res.json() as StationInfo[];
 
