@@ -48,11 +48,6 @@ function stationsUrl(bbox: string): string {
   return isDev ? `/api/stations?bbox=${encodeURIComponent(bbox)}&format=json` : corsProxy(direct);
 }
 
-function ipUrl(): string {
-  return isDev
-    ? '/api/ip'
-    : corsProxy('http://ip-api.com/json');
-}
 
 // ── Module-level state ───────────────────────────────────────
 
@@ -130,7 +125,7 @@ async function fetchTafs(stations: string[]): Promise<Map<string, string>> {
   return map;
 }
 
-// Returns the user's location: GPS first, IP fallback.
+// Returns the user's location: GPS first, then two-step IP lookup.
 interface UserLocation { lat: number; lon: number; label: string; }
 
 function getGpsPosition(): Promise<GeolocationPosition> {
@@ -148,22 +143,37 @@ function getGpsPosition(): Promise<GeolocationPosition> {
 }
 
 async function fetchUserLocation(): Promise<UserLocation> {
-  // Try GPS first (works in Even Hub webview and browsers)
+  // Try GPS first
   try {
     const pos = await getGpsPosition();
     const lat = Math.round(pos.coords.latitude * 100) / 100;
     const lon = Math.round(pos.coords.longitude * 100) / 100;
     return { lat, lon, label: `${lat.toFixed(2)}°, ${lon.toFixed(2)}°` };
   } catch (gpsErr) {
-    console.warn('GPS failed, trying IP fallback:', gpsErr);
+    console.warn('GPS unavailable, using IP geolocation:', gpsErr);
   }
 
-  // Fall back to IP geolocation
-  const res = await fetch(ipUrl());
-  if (!res.ok) throw new Error(`Location detection failed: ${res.status}`);
-  const data = await res.json();
-  if (data.status !== 'success') throw new Error('Could not determine location');
-  return { lat: data.lat, lon: data.lon, label: `${data.city}, ${data.regionName}` };
+  if (isDev) {
+    // Dev: use the Vite proxy which preserves the real client IP
+    const res = await fetch('/api/ip');
+    if (!res.ok) throw new Error(`IP geolocation failed: ${res.status}`);
+    const data = await res.json();
+    if (data.status !== 'success') throw new Error('Could not determine location');
+    return { lat: data.lat, lon: data.lon, label: `${data.city}, ${data.regionName}` };
+  }
+
+  // Production: two-step lookup to get the REAL user IP
+  // Step 1: Get the user's public IP via ipify (supports CORS + HTTPS)
+  const ipRes = await fetch('https://api.ipify.org?format=json');
+  if (!ipRes.ok) throw new Error(`Could not detect your IP: ${ipRes.status}`);
+  const { ip } = await ipRes.json();
+
+  // Step 2: Geolocate that specific IP via ip-api.com (through CORS proxy)
+  const geoRes = await fetch(corsProxy(`http://ip-api.com/json/${ip}`));
+  if (!geoRes.ok) throw new Error(`IP geolocation failed: ${geoRes.status}`);
+  const geo = await geoRes.json();
+  if (geo.status !== 'success') throw new Error('Could not determine location');
+  return { lat: geo.lat, lon: geo.lon, label: `${geo.city}, ${geo.regionName}` };
 }
 
 // Converts nautical miles to degrees of latitude (approx).
