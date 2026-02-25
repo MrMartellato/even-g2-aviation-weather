@@ -322,41 +322,25 @@ function setActiveBrowserTab(tab: TabIndex): void {
 
 // ── Glasses display helpers ──────────────────────────────────
 
-function buildGlassesPages(tab: TabIndex, content: string): string[] {
+function buildGlassesPages(tab: TabIndex, stationContents: string[]): string[] {
   const name = TAB_NAMES[tab];
   const divider = '-'.repeat(40);
 
-  // Max ~35 lines or ~1800 characters per page
-  const MAX_LINES = 35;
-  const MAX_CHARS = 1800;
+  if (stationContents.length === 0) {
+    return [`${name}\n${divider}\nNo data.`];
+  }
 
-  const pages: string[] = [];
-  const lines = content.split('\n');
+  return stationContents.map((pageContent, idx) => {
+    const pageHeader = stationContents.length > 1 ? `${name} (Page ${idx + 1}/${stationContents.length})` : name;
 
-  let currentLines: string[] = [];
-  let currentChars = 0;
-
-  for (const line of lines) {
-    if (currentLines.length >= MAX_LINES || currentChars + line.length > MAX_CHARS) {
-      pages.push(currentLines.join('\n'));
-      currentLines = [];
-      currentChars = 0;
+    // Safety fallback: truncate extremely long individual station texts just in case
+    let safeContent = pageContent;
+    const MAX_CHARS = 1800;
+    if (safeContent.length > MAX_CHARS) {
+      safeContent = safeContent.substring(0, MAX_CHARS) + '\n... (truncated)';
     }
-    currentLines.push(line);
-    currentChars += line.length + 1; // +1 for the newline
-  }
 
-  if (currentLines.length > 0) {
-    pages.push(currentLines.join('\n'));
-  }
-
-  if (pages.length === 0) {
-    pages.push('No data.');
-  }
-
-  return pages.map((pageContent, idx) => {
-    const pageHeader = pages.length > 1 ? `${name} (Page ${idx + 1}/${pages.length})` : name;
-    return `${pageHeader}\n${divider}\n${pageContent}`;
+    return `${pageHeader}\n${divider}\n${safeContent}`;
   });
 }
 
@@ -463,7 +447,7 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
       if (stations.length === 0) {
         setNearbyState('error', `No METAR stations found within ${NEARBY_RADIUS_NM} nm of ${loc.label}.`);
         setStatus('No nearby stations found');
-        cachedPages[0] = buildGlassesPages(0, `No METAR stations within\n${NEARBY_RADIUS_NM} nm of ${loc.label}.`);
+        cachedPages[0] = buildGlassesPages(0, [`No METAR stations within\n${NEARBY_RADIUS_NM} nm of ${loc.label}.`]);
         currentPageIndex = 0;
         if (glassesInitialised && appState === 'weather' && currentTab === 0)
           await updateGlassesText(cachedPages[0][0]);
@@ -489,18 +473,16 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
       setNearbyState('ready');
       setStatus(`Nearby stations for ${loc.label}`);
 
-      const glassesContent = results
-        .flatMap((r) => {
-          const parts: string[] = [];
-          const distStr = r.distNm !== undefined ? ` (${r.distNm.toFixed(1)} NM)` : '';
-          parts.push(`${r.station}${distStr}`);
-          if (r.metar) parts.push(r.metar);
-          if (currentIncludeTafNearby && r.taf) parts.push(r.taf);
-          return parts;
-        })
-        .join('\n\n');
+      const glassesContentArray = results.map((r) => {
+        const parts: string[] = [];
+        const distStr = r.distNm !== undefined ? ` (${r.distNm.toFixed(1)} NM)` : '';
+        parts.push(`${r.station}${distStr}`);
+        if (r.metar) parts.push(r.metar);
+        if (currentIncludeTafNearby && r.taf) parts.push(r.taf);
+        return parts.join('\n\n');
+      });
 
-      cachedPages[0] = buildGlassesPages(0, glassesContent || `Nearby ${loc.label}:\nNo data.`);
+      cachedPages[0] = buildGlassesPages(0, glassesContentArray.length > 0 ? glassesContentArray : [`Nearby ${loc.label}:\nNo data.`]);
       currentPageIndex = 0;
       if (glassesInitialised && appState === 'weather' && currentTab === 0)
         await updateGlassesText(cachedPages[0][0]);
@@ -509,7 +491,7 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
       const msg = err instanceof Error ? err.message : String(err);
       setNearbyState('error', `Could not load nearby stations: ${msg}`);
       setStatus(`Error: ${msg}`);
-      cachedPages[0] = buildGlassesPages(0, `Nearby error:\n${msg}`);
+      cachedPages[0] = buildGlassesPages(0, [`Nearby error:\n${msg}`]);
       currentPageIndex = 0;
       if (glassesInitialised && appState === 'weather' && currentTab === 0)
         await updateGlassesText(cachedPages[0][0]);
@@ -540,17 +522,15 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
 
   renderResults(results, includeTaf, TAB_NAMES[tab]);
 
-  const glassesContent = results
-    .flatMap((r) => {
-      const parts: string[] = [];
-      if (r.metar) parts.push(r.metar);
-      if (includeTaf && r.taf) parts.push(r.taf);
-      return parts;
-    })
-    .join('\n\n');
+  const glassesContentArray = results.map((r) => {
+    const parts: string[] = [];
+    if (r.metar) parts.push(r.metar);
+    if (includeTaf && r.taf) parts.push(r.taf);
+    return parts.join('\n\n');
+  });
 
-  if (glassesContent) {
-    cachedPages[tab] = buildGlassesPages(tab, glassesContent);
+  if (glassesContentArray.length > 0) {
+    cachedPages[tab] = buildGlassesPages(tab, glassesContentArray);
     currentPageIndex = 0;
     if (glassesInitialised && appState === 'weather' && currentTab === tab) {
       await updateGlassesText(cachedPages[tab][0]);
@@ -573,7 +553,7 @@ async function selectTabFromGlassesMenu(tab: TabIndex): Promise<void> {
     // Show cached content immediately if available, then fetch fresh.
     const placeholder = cachedPages[0].length > 0
       ? cachedPages[0][currentPageIndex] // we keep current page if they re-select? Wait, reset.
-      : buildGlassesPages(0, 'Fetching nearby\nstations...')[0];
+      : buildGlassesPages(0, ['Fetching nearby\nstations...'])[0];
 
     currentPageIndex = 0;
     const initialPage = cachedPages[0].length > 0 ? cachedPages[0][0] : placeholder;
@@ -586,7 +566,7 @@ async function selectTabFromGlassesMenu(tab: TabIndex): Promise<void> {
   // Show cached content (or a loading placeholder) immediately for instant response.
   const placeholder = cachedPages[tab].length > 0
     ? cachedPages[tab][0]
-    : buildGlassesPages(tab, 'Fetching...')[0];
+    : buildGlassesPages(tab, ['Fetching...'])[0];
   await pushWeatherPage(placeholder);
 
   // Fetch fresh data and update the glasses in place.
