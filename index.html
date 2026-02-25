@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -19,7 +20,11 @@
     }
 
     /* ── Base ───────────────────────────────────────────── */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
       font-family: 'FK Grotesk Neue', -apple-system, system-ui, sans-serif;
@@ -181,9 +186,18 @@
       transition: opacity 0.15s ease;
     }
 
-    button:hover  { opacity: 0.85; }
-    button:active { opacity: 0.7; }
-    button:disabled { opacity: 0.35; cursor: not-allowed; }
+    button:hover {
+      opacity: 0.85;
+    }
+
+    button:active {
+      opacity: 0.7;
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
 
     /* ── Status ─────────────────────────────────────────── */
     #status {
@@ -226,7 +240,11 @@
       animation: spin 0.8s linear infinite;
     }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
 
     .nearby-error {
       font-size: 14px;
@@ -246,7 +264,10 @@
       border-radius: var(--even-radius-btn);
     }
 
-    #refresh-nearby:hover { background: var(--even-input-bg); opacity: 1; }
+    #refresh-nearby:hover {
+      background: var(--even-input-bg);
+      opacity: 1;
+    }
 
     /* ── Results ────────────────────────────────────────── */
     .station-block {
@@ -255,7 +276,7 @@
       gap: 8px;
     }
 
-    .station-block + .station-block {
+    .station-block+.station-block {
       border-top: 1px solid var(--even-divider);
       padding-top: 16px;
     }
@@ -291,56 +312,21 @@
       word-break: break-word;
     }
 
-    .hidden { display: none; }
-
-    /* ── Glasses status ─────────────────────────────────── */
-    .glasses-status-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .hidden {
+      display: none;
     }
-
-    .glasses-status {
-      font-weight: 400;
-      font-size: 14px;
-      line-height: 18px;
-      letter-spacing: var(--even-spacing);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .glasses-status::before {
-      content: '';
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-
-    .glasses-status--connected    { color: #34a853; }
-    .glasses-status--connected::before    { background: #34a853; }
-    .glasses-status--disconnected { color: var(--even-gray); }
-    .glasses-status--disconnected::before { background: var(--even-divider); }
   </style>
 </head>
+
 <body>
   <div id="app">
     <h1>Aviation Weather</h1>
 
-    <!-- Glasses status -->
-    <div class="card">
-      <div class="glasses-status-row">
-        <span class="wx-label">Glasses</span>
-        <span id="glasses-status" class="glasses-status glasses-status--disconnected">Not connected</span>
-      </div>
-    </div>
-
     <!-- Tab bar — mirrors the glasses menu -->
     <div class="tab-bar" role="tablist">
-      <button class="tab-btn"            data-tab="0" role="tab">Nearby</button>
+      <button class="tab-btn" data-tab="0" role="tab">Nearby</button>
       <button class="tab-btn tab-btn--active" data-tab="1" role="tab">Stations 1</button>
-      <button class="tab-btn"            data-tab="2" role="tab">Stations 2</button>
+      <button class="tab-btn" data-tab="2" role="tab">Stations 2</button>
     </div>
 
     <!-- Panel 0: Nearby -->
@@ -394,23 +380,17 @@
       </div>
     </div>
 
-    <p id="status">Connecting to glasses...</p>
+    <p id="status">Initializing...</p>
 
     <div id="results-wrapper" class="hidden">
       <h2 id="results-label">Last Fetched</h2>
       <div class="card" id="results"></div>
     </div>
 
-    <!-- Debug panel — shows raw glasses events and a manual nav test -->
-    <div id="event-debug" class="hidden">
-      <h2>Glasses Event (debug)</h2>
-      <div class="card" style="gap: 12px;">
-        <pre id="event-debug-pre" style="font-size:12px; line-height:1.4;">Waiting for event...</pre>
-        <button type="button" id="test-next-tab">Test: Select Next Tab</button>
-      </div>
-    </div>
+  </div>
   </div>
 
   <script type="module" src="/Main.ts"></script>
 </body>
+
 </html>

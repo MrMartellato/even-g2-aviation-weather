@@ -301,12 +301,6 @@ function renderResults(results: StationWeather[], includeTaf: boolean, tabLabel:
   wrapper.classList.remove('hidden');
 }
 
-function setGlassesStatus(connected: boolean): void {
-  const el = document.getElementById('glasses-status')!;
-  el.textContent = connected ? 'Connected' : 'Not connected';
-  el.className = `glasses-status glasses-status--${connected ? 'connected' : 'disconnected'}`;
-}
-
 function setStatus(text: string): void {
   document.getElementById('status')!.textContent = text;
 }
@@ -650,8 +644,7 @@ async function main() {
         setTimeout(() => reject(new Error('Bridge timeout')), 5000)
       ),
     ]);
-    setGlassesStatus(true);
-    setStatus('Glasses connected. Loading settings...');
+    setStatus('Loading settings...');
 
     await loadSettings();
 
@@ -665,29 +658,8 @@ async function main() {
     await initGlassesContainers();
     setStatus('Select a tab on your glasses to view weather');
 
-    activeBridge.onDeviceStatusChanged((status) => {
-      // In the SDK, DeviceConnectType might be an enum.
-      // Firmware differences mean we might get:
-      // 'CONNECTED' (Simulator)
-      // 1 (Connecting on HW) or 2 (Connected on HW) or 0 (Disconnected)
-      // Let's log it for debugging and use a more robust check.
-      console.log('[DeviceStatusChanged]', status);
-      const rawType = status.connectType as any;
-      const isConnected =
-        rawType === DeviceConnectType.Connected ||
-        String(rawType).toUpperCase() === 'CONNECTED' ||
-        rawType === 2 || // 2 is often 'Connected' on real hardware while 1 is 'Connecting'
-        (rawType === 1 && typeof status.connectType !== 'number'); // Fallback if 1 is strictly meant as Connected in simulator
-
-      setGlassesStatus(isConnected);
-    });
-
     activeBridge.onEvenHubEvent((event) => {
       console.log('[EvenHubEvent]', event);
-
-      const debugEl = document.getElementById('event-debug-pre');
-      if (debugEl) debugEl.textContent = 'Event received: ' + (event.jsonData?.eventType ?? event.jsonData?.Event_Type ?? 'Unknown');
-      document.getElementById('event-debug')?.classList.remove('hidden');
 
       // Raw eventType from jsonData — preserves 0 correctly (parsed SDK may drop it).
       const rawEventType = event.jsonData?.eventType ?? event.jsonData?.Event_Type;
@@ -735,8 +707,7 @@ async function main() {
     });
 
   } catch {
-    setGlassesStatus(false);
-    setStatus('No glasses — use the browser to view weather');
+    setStatus('Use the browser to view weather');
     (document.getElementById('station-1') as HTMLInputElement).value = currentStations1.join(', ');
   }
 }
