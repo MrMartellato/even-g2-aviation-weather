@@ -199,12 +199,17 @@ interface StationInfo {
   priority: number;
 }
 
+export interface NearbyStation {
+  id: string;
+  distNm: number;
+}
+
 async function fetchNearbyStationIds(
   lat: number,
   lon: number,
   radiusNm: number,
   maxCount: number,
-): Promise<string[]> {
+): Promise<NearbyStation[]> {
   const deg = nmToDeg(radiusNm);
   const minLat = lat - deg;
   const maxLat = lat + deg;
@@ -221,9 +226,9 @@ async function fetchNearbyStationIds(
   return data
     .filter((s) => s.icaoId && s.siteType.includes('METAR'))
     .map((s) => ({ id: s.icaoId as string, dist: distNm(lat, lon, s.lat, s.lon), priority: s.priority }))
-    .sort((a, b) => a.priority - b.priority || a.dist - b.dist)
+    .sort((a, b) => a.dist - b.dist)
     .slice(0, maxCount)
-    .map((s) => s.id);
+    .map((s) => ({ id: s.id, distNm: s.dist }));
 }
 
 // ── DOM helpers ──────────────────────────────────────────────
@@ -243,7 +248,7 @@ function setNearbyState(state: 'loading' | 'error' | 'ready', message = ''): voi
   if (state === 'error') errorEl.textContent = message;
 }
 
-interface StationWeather { station: string; metar: string | null; taf: string | null; }
+interface StationWeather { station: string; distNm?: number; metar: string | null; taf: string | null; }
 
 function renderResults(results: StationWeather[], includeTaf: boolean, tabLabel: string): void {
   const container = document.getElementById('results')!;
@@ -258,7 +263,7 @@ function renderResults(results: StationWeather[], includeTaf: boolean, tabLabel:
 
     const heading = document.createElement('div');
     heading.className = 'station-id';
-    heading.textContent = r.station;
+    heading.textContent = r.distNm !== undefined ? `${r.station} (${r.distNm.toFixed(1)} NM)` : r.station;
     block.appendChild(heading);
 
     const metarLabel = document.createElement('div');
@@ -410,7 +415,8 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
       setNearbyState('loading', `Finding stations near ${loc.label}...`);
       setStatus(`Finding stations near ${loc.label}...`);
 
-      const stations = await fetchNearbyStationIds(loc.lat, loc.lon, NEARBY_RADIUS_NM, NEARBY_MAX_STATIONS);
+      const nearbyStations = await fetchNearbyStationIds(loc.lat, loc.lon, NEARBY_RADIUS_NM, NEARBY_MAX_STATIONS);
+      const stations = nearbyStations.map(s => s.id);
       cachedNearbyStations = stations;
 
       if (stations.length === 0) {
@@ -430,10 +436,11 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
         currentIncludeTafNearby ? fetchTafs(stations) : Promise.resolve(new Map<string, string>()),
       ]);
 
-      const results: StationWeather[] = stations.map((s) => ({
-        station: s,
-        metar: metarMap.get(s) ?? null,
-        taf: tafMap.get(s) ?? null,
+      const results: StationWeather[] = nearbyStations.map((s) => ({
+        station: s.id,
+        distNm: s.distNm,
+        metar: metarMap.get(s.id) ?? null,
+        taf: tafMap.get(s.id) ?? null,
       }));
 
       renderResults(results, currentIncludeTafNearby, `Nearby (${loc.label})`);
@@ -443,6 +450,8 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
       const glassesContent = results
         .flatMap((r) => {
           const parts: string[] = [];
+          const distStr = r.distNm !== undefined ? ` (${r.distNm.toFixed(1)} NM)` : '';
+          parts.push(`${r.station}${distStr}`);
           if (r.metar) parts.push(r.metar);
           if (currentIncludeTafNearby && r.taf) parts.push(r.taf);
           return parts;
