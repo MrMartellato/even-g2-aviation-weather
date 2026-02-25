@@ -666,10 +666,19 @@ async function main() {
     setStatus('Select a tab on your glasses to view weather');
 
     activeBridge.onDeviceStatusChanged((status) => {
+      // In the SDK, DeviceConnectType might be an enum.
+      // Firmware differences mean we might get:
+      // 'CONNECTED' (Simulator)
+      // 1 (Connecting on HW) or 2 (Connected on HW) or 0 (Disconnected)
+      // Let's log it for debugging and use a more robust check.
+      console.log('[DeviceStatusChanged]', JSON.stringify(status));
+      const rawType = status.connectType as any;
       const isConnected =
-        status.connectType === DeviceConnectType.Connected ||
-        String(status.connectType).toUpperCase() === 'CONNECTED' ||
-        (status.connectType as any) === 1; // Sometimes it's a numeric enum in the raw payload
+        rawType === DeviceConnectType.Connected ||
+        String(rawType).toUpperCase() === 'CONNECTED' ||
+        rawType === 2 || // 2 is often 'Connected' on real hardware while 1 is 'Connecting'
+        (rawType === 1 && typeof status.connectType !== 'number'); // Fallback if 1 is strictly meant as Connected in simulator
+
       setGlassesStatus(isConnected);
     });
 
