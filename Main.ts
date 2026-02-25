@@ -645,7 +645,11 @@ async function main() {
     setStatus('Select a tab on your glasses to view weather');
 
     activeBridge.onDeviceStatusChanged((status) => {
-      setGlassesStatus(status.connectType === DeviceConnectType.Connected);
+      const isConnected =
+        status.connectType === DeviceConnectType.Connected ||
+        String(status.connectType).toUpperCase() === 'CONNECTED' ||
+        (status.connectType as any) === 1; // Sometimes it's a numeric enum in the raw payload
+      setGlassesStatus(isConnected);
     });
 
     activeBridge.onEvenHubEvent((event) => {
