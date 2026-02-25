@@ -671,7 +671,7 @@ async function main() {
       // 'CONNECTED' (Simulator)
       // 1 (Connecting on HW) or 2 (Connected on HW) or 0 (Disconnected)
       // Let's log it for debugging and use a more robust check.
-      console.log('[DeviceStatusChanged]', JSON.stringify(status));
+      console.log('[DeviceStatusChanged]', status);
       const rawType = status.connectType as any;
       const isConnected =
         rawType === DeviceConnectType.Connected ||
@@ -683,11 +683,10 @@ async function main() {
     });
 
     activeBridge.onEvenHubEvent((event) => {
-      const raw = JSON.stringify(event);
-      console.log('[EvenHubEvent]', raw);
+      console.log('[EvenHubEvent]', event);
 
       const debugEl = document.getElementById('event-debug-pre');
-      if (debugEl) debugEl.textContent = raw;
+      if (debugEl) debugEl.textContent = 'Event received: ' + (event.jsonData?.eventType ?? event.jsonData?.Event_Type ?? 'Unknown');
       document.getElementById('event-debug')?.classList.remove('hidden');
 
       // Raw eventType from jsonData — preserves 0 correctly (parsed SDK may drop it).
