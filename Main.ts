@@ -61,7 +61,8 @@ let currentIncludeTaf2 = false;
 let currentIncludeTafNearby = false;
 let cachedNearbyStations: string[] = [];
 let glassesInitialised = false;
-let cachedContent: [string, string, string] = ['', '', ''];
+let cachedPages: string[][] = [[], [], []];
+let currentPageIndex = 0;
 
 // ── Settings persistence ─────────────────────────────────────
 
@@ -321,26 +322,42 @@ function setActiveBrowserTab(tab: TabIndex): void {
 
 // ── Glasses display helpers ──────────────────────────────────
 
-function buildGlassesPage(tab: TabIndex, content: string): string {
+function buildGlassesPages(tab: TabIndex, content: string): string[] {
   const name = TAB_NAMES[tab];
   const divider = '-'.repeat(40);
 
-  // Truncate text to avoid LVGL integer overflow on the glasses (#111 error)
-  // Max ~40 lines or ~2000 characters is a safe bet for the G2 display buffer
+  // Max ~35 lines or ~1800 characters per page
   const MAX_LINES = 35;
   const MAX_CHARS = 1800;
 
-  let safeContent = content;
-  if (safeContent.length > MAX_CHARS) {
-    safeContent = safeContent.substring(0, MAX_CHARS) + '\n... (truncated)';
+  const pages: string[] = [];
+  const lines = content.split('\n');
+
+  let currentLines: string[] = [];
+  let currentChars = 0;
+
+  for (const line of lines) {
+    if (currentLines.length >= MAX_LINES || currentChars + line.length > MAX_CHARS) {
+      pages.push(currentLines.join('\n'));
+      currentLines = [];
+      currentChars = 0;
+    }
+    currentLines.push(line);
+    currentChars += line.length + 1; // +1 for the newline
   }
 
-  const lines = safeContent.split('\n');
-  if (lines.length > MAX_LINES) {
-    safeContent = lines.slice(0, MAX_LINES).join('\n') + '\n... (truncated)';
+  if (currentLines.length > 0) {
+    pages.push(currentLines.join('\n'));
   }
 
-  return `${name}\n${divider}\n${safeContent}`;
+  if (pages.length === 0) {
+    pages.push('No data.');
+  }
+
+  return pages.map((pageContent, idx) => {
+    const pageHeader = pages.length > 1 ? `${name} (Page ${idx + 1}/${pages.length})` : name;
+    return `${pageHeader}\n${divider}\n${pageContent}`;
+  });
 }
 
 // ── Glasses container helpers ────────────────────────────────
@@ -446,9 +463,10 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
       if (stations.length === 0) {
         setNearbyState('error', `No METAR stations found within ${NEARBY_RADIUS_NM} nm of ${loc.label}.`);
         setStatus('No nearby stations found');
-        cachedContent[0] = `No METAR stations within\n${NEARBY_RADIUS_NM} nm of ${loc.label}.`;
+        cachedPages[0] = buildGlassesPages(0, `No METAR stations within\n${NEARBY_RADIUS_NM} nm of ${loc.label}.`);
+        currentPageIndex = 0;
         if (glassesInitialised && appState === 'weather' && currentTab === 0)
-          await updateGlassesText(buildGlassesPage(0, cachedContent[0]));
+          await updateGlassesText(cachedPages[0][0]);
         return;
       }
 
@@ -482,17 +500,19 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
         })
         .join('\n\n');
 
-      cachedContent[0] = glassesContent || `Nearby ${loc.label}:\nNo data.`;
+      cachedPages[0] = buildGlassesPages(0, glassesContent || `Nearby ${loc.label}:\nNo data.`);
+      currentPageIndex = 0;
       if (glassesInitialised && appState === 'weather' && currentTab === 0)
-        await updateGlassesText(buildGlassesPage(0, cachedContent[0]));
+        await updateGlassesText(cachedPages[0][0]);
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setNearbyState('error', `Could not load nearby stations: ${msg}`);
       setStatus(`Error: ${msg}`);
-      cachedContent[0] = `Nearby error:\n${msg}`;
+      cachedPages[0] = buildGlassesPages(0, `Nearby error:\n${msg}`);
+      currentPageIndex = 0;
       if (glassesInitialised && appState === 'weather' && currentTab === 0)
-        await updateGlassesText(buildGlassesPage(0, cachedContent[0]));
+        await updateGlassesText(cachedPages[0][0]);
     }
     return;
   }
@@ -530,9 +550,10 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
     .join('\n\n');
 
   if (glassesContent) {
-    cachedContent[tab] = glassesContent;
+    cachedPages[tab] = buildGlassesPages(tab, glassesContent);
+    currentPageIndex = 0;
     if (glassesInitialised && appState === 'weather' && currentTab === tab) {
-      await updateGlassesText(buildGlassesPage(tab, glassesContent));
+      await updateGlassesText(cachedPages[tab][0]);
       setStatus('Displayed on glasses');
     } else {
       setStatus('Weather fetched');
@@ -550,18 +571,22 @@ async function selectTabFromGlassesMenu(tab: TabIndex): Promise<void> {
 
   if (tab === 0) {
     // Show cached content immediately if available, then fetch fresh.
-    const placeholder = cachedContent[0]
-      ? buildGlassesPage(0, cachedContent[0])
-      : buildGlassesPage(0, 'Fetching nearby\nstations...');
-    await pushWeatherPage(placeholder);
+    const placeholder = cachedPages[0].length > 0
+      ? cachedPages[0][currentPageIndex] // we keep current page if they re-select? Wait, reset.
+      : buildGlassesPages(0, 'Fetching nearby\nstations...')[0];
+
+    currentPageIndex = 0;
+    const initialPage = cachedPages[0].length > 0 ? cachedPages[0][0] : placeholder;
+    await pushWeatherPage(initialPage);
     await fetchAndDisplay(0);
     return;
   }
 
+  currentPageIndex = 0;
   // Show cached content (or a loading placeholder) immediately for instant response.
-  const placeholder = cachedContent[tab]
-    ? buildGlassesPage(tab, cachedContent[tab])
-    : buildGlassesPage(tab, 'Fetching...');
+  const placeholder = cachedPages[tab].length > 0
+    ? cachedPages[tab][0]
+    : buildGlassesPages(tab, 'Fetching...')[0];
   await pushWeatherPage(placeholder);
 
   // Fetch fresh data and update the glasses in place.
@@ -702,11 +727,21 @@ async function main() {
         return;
       }
 
-      // Single tap on the weather screen (sysEvent with no eventType = click) → refresh.
+      // Single tap on the weather screen (sysEvent with no eventType = click) → refresh or next page.
       if (event.sysEvent && rawEventType === undefined && appState === 'weather') {
-        fetchAndDisplay(currentTab).catch((err) => {
-          setStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
-        });
+        const pages = cachedPages[currentTab];
+        if (pages.length > 1) {
+          // Flip to next page
+          currentPageIndex = (currentPageIndex + 1) % pages.length;
+          updateGlassesText(pages[currentPageIndex]).catch((err) => {
+            setStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
+          });
+        } else {
+          // Only one page, just refresh the data
+          fetchAndDisplay(currentTab).catch((err) => {
+            setStatus(`Error: ${err instanceof Error ? err.message : String(err)}`);
+          });
+        }
         return;
       }
     });
