@@ -26,4 +26,7 @@ This project is built using:
 - TypeScript
 - Vite
 - Vanilla CSS
-- [Even Hub SDK](https://github.com/EvenRealities/even-hub-sdk)
+- [Even Hub SDK](https://www.npmjs.com/package/@evenrealities/even_hub_sdk)
+
+---
+*Built with Antigravity - Powered by Gemini 3.1 Pro and Sonnet 4.6*
