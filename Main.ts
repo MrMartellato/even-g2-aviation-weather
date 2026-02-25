@@ -324,7 +324,23 @@ function setActiveBrowserTab(tab: TabIndex): void {
 function buildGlassesPage(tab: TabIndex, content: string): string {
   const name = TAB_NAMES[tab];
   const divider = '-'.repeat(40);
-  return `${name}\n${divider}\n${content}`;
+
+  // Truncate text to avoid LVGL integer overflow on the glasses (#111 error)
+  // Max ~40 lines or ~2000 characters is a safe bet for the G2 display buffer
+  const MAX_LINES = 35;
+  const MAX_CHARS = 1800;
+
+  let safeContent = content;
+  if (safeContent.length > MAX_CHARS) {
+    safeContent = safeContent.substring(0, MAX_CHARS) + '\n... (truncated)';
+  }
+
+  const lines = safeContent.split('\n');
+  if (lines.length > MAX_LINES) {
+    safeContent = lines.slice(0, MAX_LINES).join('\n') + '\n... (truncated)';
+  }
+
+  return `${name}\n${divider}\n${safeContent}`;
 }
 
 // ── Glasses container helpers ────────────────────────────────
