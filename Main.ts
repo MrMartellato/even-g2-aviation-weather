@@ -113,6 +113,14 @@ async function fetchMetars(stations: string[]): Promise<Map<string, string>> {
   return map;
 }
 
+function formatTaf(taf: string): string {
+  if (!taf) return taf;
+  let formatted = taf.replace(/\s+/g, ' ').trim();
+  formatted = formatted.replace(/ (FM\d{6})/g, '\n$1');
+  formatted = formatted.replace(/ (PROB30|PROB40|TEMPO|BECMG)\b/g, '\n  $1');
+  return formatted;
+}
+
 async function fetchTafs(stations: string[]): Promise<Map<string, string>> {
   const ids = stations.join(',');
   const res = await fetch(tafUrl(ids));
@@ -120,7 +128,7 @@ async function fetchTafs(stations: string[]): Promise<Map<string, string>> {
   const data = await res.json();
   const map = new Map<string, string>();
   if (Array.isArray(data)) {
-    for (const entry of data) map.set(entry.icaoId as string, entry.rawTAF as string);
+    for (const entry of data) map.set(entry.icaoId as string, formatTaf(entry.rawTAF as string));
   }
   return map;
 }
