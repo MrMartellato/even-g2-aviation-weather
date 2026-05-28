@@ -11,12 +11,11 @@
       "name": "network",
       "desc": "Access NOAA aviation weather APIs and D-ATIS feeds.",
       "whitelist": [
-        "aviationweather.gov",
-        "api.ipify.org",
-        "ip-api.com",
-        "ipapi.co",
-        "datis.clowd.io",
-        "corsproxy.io"
+        "https://aviationweather.gov",
+        "https://api.ipify.org",
+        "http://ip-api.com",
+        "https://datis.clowd.io",
+        "https://corsproxy.io"
       ]
     },
     {

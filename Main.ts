@@ -205,11 +205,18 @@ async function fetchUserLocation(): Promise<UserLocation> {
     return { lat: data.lat, lon: data.lon, label: `${data.city}, ${data.regionName}` };
   }
 
-  // Production: Secure, HTTPS-native single-step geolocation via ipapi.co
-  const geoRes = await fetch('https://ipapi.co/json/');
+  // Production: two-step lookup to get the REAL user IP
+  // Step 1: Get the user's public IP via ipify (supports CORS + HTTPS)
+  const ipRes = await fetch('https://api.ipify.org?format=json');
+  if (!ipRes.ok) throw new Error(`Could not detect your IP: ${ipRes.status}`);
+  const { ip } = await ipRes.json();
+
+  // Step 2: Geolocate that specific IP via ip-api.com (through CORS proxy)
+  const geoRes = await fetch(corsProxy(`http://ip-api.com/json/${ip}`));
   if (!geoRes.ok) throw new Error(`IP geolocation failed: ${geoRes.status}`);
   const geo = await geoRes.json();
-  return { lat: geo.latitude, lon: geo.longitude, label: `${geo.city}, ${geo.region}` };
+  if (geo.status !== 'success') throw new Error('Could not determine location');
+  return { lat: geo.lat, lon: geo.lon, label: `${geo.city}, ${geo.regionName}` };
 }
 
 // Converts nautical miles to degrees of latitude (approx).
