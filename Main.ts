@@ -48,13 +48,18 @@ function stationsUrl(bbox: string): string {
   return isDev ? `/api/stations?bbox=${encodeURIComponent(bbox)}&format=json` : corsProxy(direct);
 }
 
+function atisUrl(icao: string): string {
+  const direct = `https://datis.clowd.io/api/${encodeURIComponent(icao)}`;
+  return isDev ? `/api/atis/${encodeURIComponent(icao)}` : corsProxy(direct);
+}
+
 
 // ── Module-level state ───────────────────────────────────────
 
 let activeBridge: EvenAppBridge | null = null;
 let appState: 'menu' | 'weather' = 'menu';
 let currentTab: TabIndex = 1;
-let currentStations1: string[] = ['CYPQ'];
+let currentStations1: string[] = [];
 let currentIncludeTaf1 = false;
 let currentStations2: string[] = [];
 let currentIncludeTaf2 = false;
@@ -75,7 +80,7 @@ async function loadSettings(): Promise<void> {
     activeBridge.getLocalStorage(STORAGE_KEY_TAF_2),
     activeBridge.getLocalStorage(STORAGE_KEY_TAF_NEARBY),
   ]);
-  currentStations1 = rawS1 ? parseStations(rawS1) : ['CYPQ'];
+  currentStations1 = rawS1 ? parseStations(rawS1) : [];
   currentIncludeTaf1 = rawT1 === 'true';
   currentStations2 = rawS2 ? parseStations(rawS2) : [];
   currentIncludeTaf2 = rawT2 === 'true';
@@ -102,14 +107,19 @@ function parseStations(input: string): string[] {
 
 // ── API helpers ──────────────────────────────────────────────
 
-async function fetchMetars(stations: string[]): Promise<Map<string, string>> {
+async function fetchMetars(stations: string[]): Promise<Map<string, { raw: string; fltCat?: string }>> {
   const ids = stations.join(',');
   const res = await fetch(metarUrl(ids));
   if (!res.ok) throw new Error(`METAR fetch failed: ${res.status}`);
   const data = await res.json();
-  const map = new Map<string, string>();
+  const map = new Map<string, { raw: string; fltCat?: string }>();
   if (Array.isArray(data)) {
-    for (const entry of data) map.set(entry.icaoId as string, entry.rawOb as string);
+    for (const entry of data) {
+      map.set(entry.icaoId as string, {
+        raw: entry.rawOb as string,
+        fltCat: entry.fltCat as string | undefined
+      });
+    }
   }
   return map;
 }
@@ -119,6 +129,7 @@ function formatTaf(taf: string): string {
   let formatted = taf.replace(/\s+/g, ' ').trim();
   formatted = formatted.replace(/ (FM\d{6})/g, '\n$1');
   formatted = formatted.replace(/ (PROB30|PROB40|TEMPO|BECMG)\b/g, '\n  $1');
+  formatted = formatted.replace(/\b(RMK)\b/g, '\n$1');
   return formatted;
 }
 
@@ -131,6 +142,29 @@ async function fetchTafs(stations: string[]): Promise<Map<string, string>> {
   if (Array.isArray(data)) {
     for (const entry of data) map.set(entry.icaoId as string, formatTaf(entry.rawTAF as string));
   }
+  return map;
+}
+
+async function fetchAtisMap(stations: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  await Promise.all(
+    stations.map(async (s) => {
+      try {
+        const res = await fetch(atisUrl(s));
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            const rawAtis = data.map((d: any) => d.datis).join('\n\n');
+            if (rawAtis.trim()) {
+              map.set(s, rawAtis);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`ATIS fetch failed for ${s}:`, err);
+      }
+    })
+  );
   return map;
 }
 
@@ -257,7 +291,14 @@ function setNearbyState(state: 'loading' | 'error' | 'ready', message = ''): voi
   if (state === 'error') errorEl.textContent = message;
 }
 
-interface StationWeather { station: string; distNm?: number; metar: string | null; taf: string | null; }
+interface StationWeather {
+  station: string;
+  distNm?: number;
+  metar: string | null;
+  taf: string | null;
+  fltCat?: string;
+  atis?: string | null;
+}
 
 function renderResults(results: StationWeather[], includeTaf: boolean, tabLabel: string): void {
   const container = document.getElementById('results')!;
@@ -267,35 +308,79 @@ function renderResults(results: StationWeather[], includeTaf: boolean, tabLabel:
   label.textContent = `${tabLabel} — Last Fetched`;
 
   for (const r of results) {
-    const block = document.createElement('div');
-    block.className = 'station-block';
+    const card = document.createElement('div');
+    const cat = (r.fltCat || 'NA').toUpperCase();
+    card.className = `station-card station-card--${cat.toLowerCase()}`;
 
-    const heading = document.createElement('div');
-    heading.className = 'station-id';
-    heading.textContent = r.distNm !== undefined ? `${r.station} (${r.distNm.toFixed(1)} NM)` : r.station;
-    block.appendChild(heading);
+    const header = document.createElement('div');
+    header.className = 'station-header';
+
+    const title = document.createElement('div');
+    title.className = 'station-title';
+    title.textContent = r.station;
+
+    if (r.distNm !== undefined) {
+      const distSpan = document.createElement('span');
+      distSpan.className = 'station-dist';
+      distSpan.textContent = ` (${r.distNm.toFixed(1)} NM)`;
+      title.appendChild(distSpan);
+    }
+
+    const badge = document.createElement('span');
+    badge.className = 'flt-badge';
+    badge.textContent = cat;
+
+    header.appendChild(title);
+    header.appendChild(badge);
+    card.appendChild(header);
+
+    const metarSection = document.createElement('div');
+    metarSection.className = 'wx-section';
 
     const metarLabel = document.createElement('div');
     metarLabel.className = 'wx-label';
     metarLabel.textContent = 'METAR';
-    block.appendChild(metarLabel);
+    metarSection.appendChild(metarLabel);
 
     const metarPre = document.createElement('pre');
     metarPre.textContent = r.metar ?? 'No METAR available';
-    block.appendChild(metarPre);
+    metarSection.appendChild(metarPre);
+
+    card.appendChild(metarSection);
 
     if (includeTaf) {
+      const tafSection = document.createElement('div');
+      tafSection.className = 'wx-section';
+
       const tafLabel = document.createElement('div');
       tafLabel.className = 'wx-label';
       tafLabel.textContent = 'TAF';
-      block.appendChild(tafLabel);
+      tafSection.appendChild(tafLabel);
 
       const tafPre = document.createElement('pre');
       tafPre.textContent = r.taf ?? 'No TAF available';
-      block.appendChild(tafPre);
+      tafSection.appendChild(tafPre);
+
+      card.appendChild(tafSection);
     }
 
-    container.appendChild(block);
+    if (r.atis) {
+      const atisSection = document.createElement('div');
+      atisSection.className = 'wx-section';
+
+      const atisLabel = document.createElement('div');
+      atisLabel.className = 'wx-label';
+      atisLabel.textContent = 'ATIS';
+      atisSection.appendChild(atisLabel);
+
+      const atisPre = document.createElement('pre');
+      atisPre.textContent = r.atis;
+      atisSection.appendChild(atisPre);
+
+      card.appendChild(atisSection);
+    }
+
+    container.appendChild(card);
   }
 
   wrapper.classList.remove('hidden');
@@ -316,25 +401,187 @@ function setActiveBrowserTab(tab: TabIndex): void {
 
 // ── Glasses display helpers ──────────────────────────────────
 
-function buildGlassesPages(tab: TabIndex, stationContents: string[]): string[] {
-  const name = TAB_NAMES[tab];
-  const divider = '-'.repeat(40);
+function wrapText(text: string, maxCharsPerLine = 46): string {
+  const paragraphs = text.split('\n');
+  const allLines: string[] = [];
 
-  if (stationContents.length === 0) {
-    return [`${name}\n${divider}\nNo data.`];
+  for (const para of paragraphs) {
+    if (para.trim() === '') {
+      allLines.push('');
+      continue;
+    }
+    
+    // Capture leading indentation spaces (e.g. TAF segment indents)
+    const leadingSpacesMatch = para.match(/^( +)/);
+    const indent = leadingSpacesMatch ? leadingSpacesMatch[1] : '';
+    
+    const words = para.trim().split(/\s+/);
+    let currentLine = '';
+    
+    for (const word of words) {
+      if (currentLine === '') {
+        currentLine = indent + word;
+      } else if (currentLine.length + 1 + word.length <= maxCharsPerLine) {
+        currentLine += ' ' + word;
+      } else {
+        allLines.push(currentLine);
+        currentLine = indent + word;
+      }
+    }
+    if (currentLine) {
+      allLines.push(currentLine);
+    }
   }
+  return allLines.join('\n');
+}
 
-  return stationContents.map((pageContent, idx) => {
-    const pageHeader = stationContents.length > 1 ? `${name} (Page ${idx + 1}/${stationContents.length})` : name;
+function chunkText(text: string, limit: number, header: string): string[] {
+  const chunks: string[] = [];
+  let index = 0;
 
-    // Safety fallback: truncate extremely long individual station texts just in case
-    let safeContent = pageContent;
-    const MAX_CHARS = 1800;
-    if (safeContent.length > MAX_CHARS) {
-      safeContent = safeContent.substring(0, MAX_CHARS) + '\n... (truncated)';
+  while (index < text.length) {
+    const isContinuation = chunks.length > 0;
+    const currentHeader = isContinuation ? `${header} (cont.)` : header;
+    const pageCapacity = limit - currentHeader.length - 2;
+
+    if (pageCapacity <= 10) {
+      break;
     }
 
-    return `${pageHeader}\n${divider}\n${safeContent}`;
+    let chunkBody = text.slice(index, index + pageCapacity);
+
+    if (index + pageCapacity < text.length) {
+      // Split at a clean space or newline boundary in the last 100 characters
+      let splitIdx = -1;
+      const lookbackLimit = Math.min(100, chunkBody.length);
+      for (let i = chunkBody.length - 1; i >= chunkBody.length - lookbackLimit; i--) {
+        const char = chunkBody[i];
+        if (char === ' ' || char === '\n' || char === '\r') {
+          splitIdx = i;
+          break;
+        }
+      }
+
+      if (splitIdx > 0) {
+        chunkBody = chunkBody.slice(0, splitIdx);
+        index += splitIdx + 1;
+      } else {
+        index += chunkBody.length;
+      }
+    } else {
+      index += chunkBody.length;
+    }
+
+    const h = isContinuation ? `${header} (cont.)` : header;
+    chunks.push(`${h}\n\n${chunkBody.trim()}`);
+  }
+
+  return chunks;
+}
+
+function generateStationPages(r: StationWeather, includeTaf: boolean, isNearby: boolean): string[] {
+  const RAW_CONTENT_LIMIT = 650; // Max characters of raw body text before dynamic page-split is triggered
+  const fltCatStr = r.fltCat ? ` [${r.fltCat}]` : '';
+  const distStr = (isNearby && r.distNm !== undefined) ? ` (${r.distNm.toFixed(1)} NM)` : '';
+  const baseHeader = `${r.station}${fltCatStr}${distStr}`;
+
+  const sections: string[] = [];
+  if (r.metar) sections.push(r.metar);
+  if (includeTaf && r.taf) sections.push(r.taf);
+  if (r.atis) sections.push(r.atis);
+
+  if (sections.length === 0) {
+    return [baseHeader];
+  }
+
+  // 1. Try to fit everything on one page
+  const singlePageBody = sections.join('\n\n');
+  const singlePageFull = `${baseHeader}\n\n${singlePageBody}`;
+  if (singlePageFull.length <= RAW_CONTENT_LIMIT) {
+    return [singlePageFull];
+  }
+
+  // 2. If it exceeds limit, split into METAR/TAF (Page 1) and ATIS (Page 2)
+  const pages: string[] = [];
+
+  const p1Sections: string[] = [];
+  if (r.metar) p1Sections.push(r.metar);
+  if (includeTaf && r.taf) p1Sections.push(r.taf);
+
+  if (p1Sections.length > 0) {
+    const p1Body = p1Sections.join('\n\n');
+    const p1Full = `${baseHeader}\n\n${p1Body}`;
+    if (p1Full.length <= RAW_CONTENT_LIMIT) {
+      pages.push(p1Full);
+    } else {
+      // Split METAR and TAF onto separate pages if combined they are too long
+      if (r.metar) {
+        pages.push(`${baseHeader}\n\n${r.metar}`);
+      }
+      if (includeTaf && r.taf) {
+        const tafHeader = `${r.station}${fltCatStr}${distStr} TAF`;
+        const tafPages = chunkText(r.taf, RAW_CONTENT_LIMIT, tafHeader);
+        pages.push(...tafPages);
+      }
+    }
+  }
+
+  if (r.atis) {
+    const atisHeader = `${r.station}${fltCatStr}${distStr} D-ATIS`;
+    const atisFull = `${atisHeader}\n\n${r.atis}`;
+    if (atisFull.length <= RAW_CONTENT_LIMIT) {
+      pages.push(atisFull);
+    } else {
+      const atisPages = chunkText(r.atis, RAW_CONTENT_LIMIT, atisHeader);
+      pages.push(...atisPages);
+    }
+  }
+
+  return pages;
+}
+
+function buildGlassesPages(tab: TabIndex, stationContents: string[]): string[] {
+  const name = TAB_NAMES[tab].toUpperCase();
+  const sepLine = `  ${'─'.repeat(26)}`;
+
+  // Format current local time as HH:MM
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+  if (stationContents.length === 0) {
+    const headerLine = `  ${name} · Fetched at ${timeStr}`;
+    return [
+      `${headerLine}\n${sepLine}\n\n  No data available.`
+    ];
+  }
+
+  return stationContents.map((rawContent, idx) => {
+    // Format: NEARBY · Fetched at HH:MM · Page X/X
+    let headerLine = `  ${name} · Fetched at ${timeStr}`;
+    if (stationContents.length > 0) {
+      headerLine += ` · Page ${idx + 1}/${stationContents.length}`;
+    }
+
+    // Word wrap the entire content to 46 characters
+    const wrappedContent = wrapText(rawContent, 46);
+
+    // Indent each line by two spaces (excluding blank lines)
+    const contentLines = wrappedContent
+      .split('\n')
+      .map((line) => (line.trim() === '' ? '' : `  ${line}`))
+      .join('\n');
+
+    const lines: string[] = [];
+    lines.push(headerLine);
+    lines.push(sepLine);
+    lines.push(``);
+    lines.push(contentLines);
+
+    const fullText = lines.join('\n');
+    if (fullText.length > 950) {
+      return fullText.slice(0, 920) + '\n  ... [TRUNCATED]';
+    }
+    return fullText;
   });
 }
 
@@ -348,7 +595,7 @@ function makeMenuListContainer() {
     height: 288,
     borderWidth: 0,
     borderColor: 0,
-    borderRdaius: 0,
+    borderRadius: 0,
     paddingLength: 8,
     containerID: 1,
     containerName: 'menu-list',
@@ -370,7 +617,7 @@ function makeWeatherTextContainer(content: string) {
     height: 288,
     borderWidth: 0,
     borderColor: 0,
-    borderRdaius: 0,
+    borderRadius: 0,
     paddingLength: 8,
     containerID: 1,
     containerName: 'wx-text',
@@ -451,29 +698,32 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
       setNearbyState('loading', `Fetching weather for ${stations.join(', ')}...`);
       setStatus(`Fetching weather for ${stations.join(', ')}...`);
 
-      const [metarMap, tafMap] = await Promise.all([
+      const [metarMap, tafMap, atisMap] = await Promise.all([
         fetchMetars(stations),
         currentIncludeTafNearby ? fetchTafs(stations) : Promise.resolve(new Map<string, string>()),
+        fetchAtisMap(stations),
       ]);
 
-      const results: StationWeather[] = nearbyStations.map((s) => ({
-        station: s.id,
-        distNm: s.distNm,
-        metar: metarMap.get(s.id) ?? null,
-        taf: tafMap.get(s.id) ?? null,
-      }));
+      const results: StationWeather[] = nearbyStations.map((s) => {
+        const metarData = metarMap.get(s.id);
+        return {
+          station: s.id,
+          distNm: s.distNm,
+          metar: metarData ? metarData.raw : null,
+          taf: tafMap.get(s.id) ?? null,
+          fltCat: metarData ? metarData.fltCat : undefined,
+          atis: atisMap.get(s.id) ?? null,
+        };
+      });
 
       renderResults(results, currentIncludeTafNearby, `Nearby (${loc.label})`);
       setNearbyState('ready');
       setStatus(`Nearby stations for ${loc.label}`);
 
-      const glassesContentArray = results.map((r) => {
-        const parts: string[] = [];
-        const distStr = r.distNm !== undefined ? ` (${r.distNm.toFixed(1)} NM)` : '';
-        parts.push(`${r.station}${distStr}`);
-        if (r.metar) parts.push(r.metar);
-        if (currentIncludeTafNearby && r.taf) parts.push(r.taf);
-        return parts.join('\n\n');
+      const glassesContentArray: string[] = [];
+      results.forEach((r) => {
+        const pages = generateStationPages(r, currentIncludeTafNearby, true);
+        glassesContentArray.push(...pages);
       });
 
       cachedPages[0] = buildGlassesPages(0, glassesContentArray.length > 0 ? glassesContentArray : [`Nearby ${loc.label}:\nNo data.`]);
@@ -497,30 +747,51 @@ async function fetchAndDisplay(tab: TabIndex): Promise<void> {
   const includeTaf = tab === 1 ? currentIncludeTaf1 : currentIncludeTaf2;
 
   if (stations.length === 0) {
+    const noStationsMsg = 'No stations selected.';
     setStatus(`No stations configured for ${TAB_NAMES[tab]}`);
+    
+    // Update glasses
+    cachedPages[tab] = buildGlassesPages(tab, [noStationsMsg]);
+    currentPageIndex = 0;
+    if (glassesInitialised && appState === 'weather' && currentTab === tab) {
+      await updateGlassesText(cachedPages[tab][0]);
+    }
+    
+    // Update web UI
+    const container = document.getElementById('results')!;
+    const wrapper = document.getElementById('results-wrapper')!;
+    const label = document.getElementById('results-label')!;
+    container.innerHTML = `<div class="nearby-loading">${noStationsMsg}</div>`;
+    label.textContent = `${TAB_NAMES[tab]}`;
+    wrapper.classList.remove('hidden');
     return;
   }
 
   setStatus(`Fetching weather for ${stations.join(', ')}...`);
 
-  const [metarMap, tafMap] = await Promise.all([
+  const [metarMap, tafMap, atisMap] = await Promise.all([
     fetchMetars(stations),
     includeTaf ? fetchTafs(stations) : Promise.resolve(new Map<string, string>()),
+    fetchAtisMap(stations),
   ]);
 
-  const results: StationWeather[] = stations.map((s) => ({
-    station: s,
-    metar: metarMap.get(s) ?? null,
-    taf: tafMap.get(s) ?? null,
-  }));
+  const results: StationWeather[] = stations.map((s) => {
+    const metarData = metarMap.get(s);
+    return {
+      station: s,
+      metar: metarData ? metarData.raw : null,
+      taf: tafMap.get(s) ?? null,
+      fltCat: metarData ? metarData.fltCat : undefined,
+      atis: atisMap.get(s) ?? null,
+    };
+  });
 
   renderResults(results, includeTaf, TAB_NAMES[tab]);
 
-  const glassesContentArray = results.map((r) => {
-    const parts: string[] = [];
-    if (r.metar) parts.push(r.metar);
-    if (includeTaf && r.taf) parts.push(r.taf);
-    return parts.join('\n\n');
+  const glassesContentArray: string[] = [];
+  results.forEach((r) => {
+    const pages = generateStationPages(r, includeTaf, false);
+    glassesContentArray.push(...pages);
   });
 
   if (glassesContentArray.length > 0) {

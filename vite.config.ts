@@ -24,6 +24,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/ip/, '/json'),
       },
+      '/api/atis': {
+        target: 'https://datis.clowd.io',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/atis/, '/api'),
+      },
     },
   },
 });

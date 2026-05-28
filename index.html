@@ -5,18 +5,56 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Even G2 — Aviation Weather</title>
+  
+  <!-- Even Design System compliant typography imports -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
   <style>
-    /* ── Even Design System Tokens ─────────────────────── */
+    /* ── Even Design System Tokens (Compliant with 2025 Guidelines) ── */
     :root {
-      --even-bg: #EEEEEE;
-      --even-card-bg: #FFFFFF;
-      --even-black: #232323;
-      --even-gray: #7B7B7B;
-      --even-divider: #BDBDBD;
-      --even-input-bg: rgba(35, 35, 35, 0.08);
-      --even-radius-card: 12px;
-      --even-radius-btn: 10px;
-      --even-spacing: -0.03em;
+      --color-bg: #EEEEEE;              /* BC-3rd (Main background) */
+      --color-surface: #FFFFFF;          /* BC-1st (Card surface) */
+      --color-surface-light: #F6F6F6;   /* BC-2nd */
+      --color-surface-lighter: #E4E4E4; /* BC-4th */
+      --color-border: #E4E4E4;          /* BC-4th */
+      --color-border-light: #EEEEEE;    /* BC-3rd */
+      --color-text: #232323;            /* TC-1st (Primary text) */
+      --color-text-dim: #7B7B7B;        /* TC-2nd (Secondary text) */
+      --color-accent: #232323;          /* BC-Highlight */
+      --color-accent-alpha: rgba(35, 35, 35, 0.08); /* SC-2nd */
+
+      /* Dynamic Semantic/Aviation status tokens */
+      --color-vfr: #4BB956;
+      --color-vfr-alpha: rgba(75, 185, 86, 0.08);
+      --color-vfr-border: rgba(75, 185, 86, 0.25);
+      
+      --color-mvfr: #00B0FF;
+      --color-mvfr-alpha: rgba(0, 176, 255, 0.08);
+      --color-mvfr-border: rgba(0, 176, 255, 0.25);
+      
+      --color-ifr: #FF453A;
+      --color-ifr-alpha: rgba(255, 69, 58, 0.08);
+      --color-ifr-border: rgba(255, 69, 58, 0.25);
+      
+      --color-lifr: #D500F9;
+      --color-lifr-alpha: rgba(213, 0, 249, 0.08);
+      --color-lifr-border: rgba(213, 0, 249, 0.25);
+      
+      --color-na: #7B7B7B;
+      --color-na-alpha: rgba(123, 123, 123, 0.08);
+      --color-na-border: rgba(123, 123, 123, 0.20);
+
+      --radius-card: 12px;
+      --radius-btn: 10px;
+      --radius-badge: 6px;
+      
+      --font-display: 'FK Grotesk Neue', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'FK Grotesk Neue', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+      
+      --transition-smooth: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     /* ── Base ───────────────────────────────────────────── */
@@ -27,54 +65,73 @@
     }
 
     body {
-      font-family: 'FK Grotesk Neue', -apple-system, system-ui, sans-serif;
-      background: var(--even-bg);
-      color: var(--even-black);
+      font-family: var(--font-body);
+      background: var(--color-bg);
+      color: var(--color-text);
       -webkit-font-smoothing: antialiased;
+      padding-bottom: 40px;
     }
 
     #app {
       max-width: 480px;
       margin: 0 auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    /* ── Typography ────────────────────────────────────── */
-    h1 {
-      font-weight: 300;
-      font-size: 32px;
-      line-height: 41px;
-      letter-spacing: var(--even-spacing);
-      color: var(--even-black);
-      padding: 8px 0 4px;
-    }
-
-    h2 {
-      font-weight: 400;
-      font-size: 17px;
-      line-height: 22px;
-      letter-spacing: var(--even-spacing);
-      color: var(--even-gray);
-      padding: 0 8px 4px;
-    }
-
-    /* ── Card ───────────────────────────────────────────── */
-    .card {
-      background: var(--even-card-bg);
-      border-radius: var(--even-radius-card);
-      padding: 24px;
+      padding: 24px 16px;
       display: flex;
       flex-direction: column;
       gap: 16px;
     }
 
-    /* ── Tab bar ────────────────────────────────────────── */
+    /* ── Typography (FK Grotesk scales matching guide) ── */
+    h1 {
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: 24px;
+      line-height: 30px;
+      letter-spacing: -0.72px;
+      color: var(--color-text);
+      padding: 12px 0 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h1 svg {
+      width: 24px;
+      height: 24px;
+      fill: currentColor;
+    }
+
+    h2 {
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: 15px;
+      line-height: 20px;
+      letter-spacing: -0.15px;
+      color: var(--color-text-dim);
+      padding: 0 4px 4px;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Card ───────────────────────────────────────────── */
+    .card {
+      background: var(--color-surface);
+      border-radius: var(--radius-card);
+      padding: 24px;
+      border: 1px solid var(--color-border);
+      box-shadow: 0 8px 30px rgba(35, 35, 35, 0.015), 0 2px 8px rgba(35, 35, 35, 0.005);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      transition: var(--transition-smooth);
+    }
+
+    /* ── Tab bar (Segmented Control) ─────────────────────── */
     .tab-bar {
-      background: var(--even-card-bg);
-      border-radius: var(--even-radius-card);
+      background: var(--color-surface-light);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
       padding: 4px;
       display: flex;
       gap: 4px;
@@ -84,232 +141,343 @@
       flex: 1;
       width: auto;
       padding: 10px 8px;
-      font-family: 'FK Grotesk Neue', -apple-system, system-ui, sans-serif;
-      font-weight: 400;
+      font-family: var(--font-display);
+      font-weight: 500;
       font-size: 15px;
       line-height: 20px;
-      letter-spacing: var(--even-spacing);
+      letter-spacing: -0.15px;
       text-align: center;
-      color: var(--even-gray);
+      color: var(--color-text-dim);
       background: transparent;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      transition: background 0.15s ease, color 0.15s ease;
+      transition: var(--transition-smooth);
     }
 
     .tab-btn:hover {
-      background: var(--even-input-bg);
-      color: var(--even-black);
+      color: var(--color-text);
+      background: rgba(35, 35, 35, 0.04);
     }
 
     .tab-btn--active {
-      background: var(--even-black);
-      color: var(--even-card-bg);
+      background: var(--color-accent);
+      color: var(--color-surface);
     }
 
     .tab-btn--active:hover {
-      background: var(--even-black);
+      background: var(--color-accent);
+      color: var(--color-surface);
       opacity: 0.9;
     }
 
     /* ── Form Elements ─────────────────────────────────── */
     label {
-      font-weight: 400;
-      font-size: 14px;
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: 13px;
       line-height: 18px;
-      letter-spacing: var(--even-spacing);
-      color: var(--even-gray);
+      letter-spacing: -0.13px;
+      color: var(--color-text-dim);
+      margin-bottom: 6px;
+      display: block;
     }
 
     input[type="text"] {
       width: 100%;
       padding: 14px 16px;
-      font-family: 'FK Grotesk Neue', -apple-system, system-ui, sans-serif;
+      font-family: var(--font-body);
       font-weight: 400;
-      font-size: 17px;
-      line-height: 22px;
-      letter-spacing: -0.01em;
-      color: var(--even-black);
-      background: var(--even-input-bg);
-      border: none;
-      border-radius: var(--even-radius-card);
+      font-size: 15px;
+      line-height: 20px;
+      color: var(--color-text);
+      background: var(--color-surface-light);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
       text-transform: uppercase;
       outline: none;
+      transition: var(--transition-smooth);
     }
 
     input[type="text"]::placeholder {
-      color: var(--even-gray);
+      color: var(--color-text-dim);
       text-transform: none;
+      opacity: 0.7;
     }
 
     input[type="text"]:focus {
-      box-shadow: 0 0 0 1.5px var(--even-black);
+      border-color: var(--color-text);
+      background: var(--color-surface);
+      box-shadow: 0 0 0 3px rgba(35, 35, 35, 0.05);
     }
 
     .checkbox-row {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
+      user-select: none;
     }
 
     .checkbox-row input[type="checkbox"] {
       width: 20px;
       height: 20px;
-      accent-color: var(--even-black);
+      accent-color: var(--color-accent);
+      border: 1.5px solid var(--color-border);
       border-radius: 4px;
       cursor: pointer;
+      transition: var(--transition-smooth);
     }
 
     .checkbox-row label {
-      font-size: 17px;
-      line-height: 22px;
-      color: var(--even-black);
+      font-family: var(--font-body);
+      font-weight: 400;
+      font-size: 15px;
+      line-height: 20px;
+      letter-spacing: -0.15px;
+      color: var(--color-text);
+      margin-bottom: 0;
       cursor: pointer;
     }
 
     /* ── Button ─────────────────────────────────────────── */
     button {
       width: 100%;
-      padding: 16px;
-      font-family: 'FK Grotesk Neue', -apple-system, system-ui, sans-serif;
-      font-weight: 400;
-      font-size: 17px;
-      line-height: 22px;
-      letter-spacing: -0.01em;
+      padding: 14px 20px;
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: 15px;
+      line-height: 20px;
+      letter-spacing: -0.15px;
       text-align: center;
-      color: var(--even-card-bg);
-      background: var(--even-black);
+      color: var(--color-surface);
+      background: var(--color-accent);
       border: none;
-      border-radius: var(--even-radius-btn);
+      border-radius: var(--radius-btn);
       cursor: pointer;
-      transition: opacity 0.15s ease;
+      transition: var(--transition-smooth);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
     button:hover {
-      opacity: 0.85;
+      opacity: 0.9;
+      transform: translateY(-1px);
     }
 
     button:active {
-      opacity: 0.7;
+      transform: translateY(0);
+      opacity: 0.8;
     }
 
     button:disabled {
       opacity: 0.35;
       cursor: not-allowed;
+      transform: none;
     }
 
-    /* ── Status ─────────────────────────────────────────── */
+    /* ── Status Banner ─────────────────────────────────── */
     #status {
-      font-weight: 400;
-      font-size: 14px;
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: 13px;
       line-height: 18px;
-      letter-spacing: var(--even-spacing);
-      color: var(--even-gray);
+      letter-spacing: -0.13px;
+      color: var(--color-text-dim);
       text-align: center;
-      padding: 4px 0;
+      padding: 8px;
+      background: var(--color-surface-light);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-card);
+      transition: var(--transition-smooth);
     }
 
-    /* ── Divider ────────────────────────────────────────── */
-    .divider {
+    /* ── Dynamic Station Cards (Aviation Themed) ────────── */
+    #results {
+      padding: 0;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      gap: 12px;
+    }
+
+    .station-card {
+      background: var(--color-surface);
+      border-radius: var(--radius-card);
+      padding: 20px;
+      border: 1px solid var(--color-border);
+      border-left: 4px solid var(--theme-color, var(--color-border));
+      box-shadow: 0 4px 18px rgba(35, 35, 35, 0.01);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: var(--transition-smooth);
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .station-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(35, 35, 35, 0.02);
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .station-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       width: 100%;
-      height: 1px;
-      background: var(--even-divider);
     }
 
-    /* ── Nearby panel ────────────────────────────────────── */
+    .station-title {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 17px;
+      line-height: 22px;
+      letter-spacing: -0.17px;
+      color: var(--color-text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .station-dist {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--color-text-dim);
+    }
+
+    .flt-badge {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      line-height: 14px;
+      padding: 4px 8px;
+      border-radius: var(--radius-badge);
+      text-transform: uppercase;
+      background: var(--theme-bg);
+      color: var(--theme-color);
+      border: 1px solid var(--theme-border);
+    }
+
+    /* Theme bindings per flight rule */
+    .station-card--vfr {
+      --theme-color: var(--color-vfr);
+      --theme-bg: var(--color-vfr-alpha);
+      --theme-border: var(--color-vfr-border);
+    }
+    .station-card--mvfr {
+      --theme-color: var(--color-mvfr);
+      --theme-bg: var(--color-mvfr-alpha);
+      --theme-border: var(--color-mvfr-border);
+    }
+    .station-card--ifr {
+      --theme-color: var(--color-ifr);
+      --theme-bg: var(--color-ifr-alpha);
+      --theme-border: var(--color-ifr-border);
+    }
+    .station-card--lifr {
+      --theme-color: var(--color-lifr);
+      --theme-bg: var(--color-lifr-alpha);
+      --theme-border: var(--color-lifr-border);
+    }
+    .station-card--na {
+      --theme-color: var(--color-na);
+      --theme-bg: var(--color-na-alpha);
+      --theme-border: var(--color-na-border);
+    }
+
+    .wx-section {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .wx-label {
+      font-family: var(--font-display);
+      font-weight: 500;
+      font-size: 11px;
+      line-height: 14px;
+      letter-spacing: 0.05em;
+      color: var(--color-text-dim);
+      text-transform: uppercase;
+    }
+
+    pre {
+      font-family: var(--font-mono);
+      font-weight: 400;
+      font-size: 13px;
+      line-height: 18px;
+      color: var(--color-text);
+      background: var(--color-surface-light);
+      padding: 12px 14px;
+      border-radius: var(--radius-badge);
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid var(--color-border);
+    }
+
+    /* ── Loader & Utilities ─────────────────────────────── */
     .nearby-loading {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      padding: 12px 0;
+      gap: 12px;
+      padding: 24px 0;
+      font-family: var(--font-display);
       font-size: 14px;
-      line-height: 18px;
-      letter-spacing: var(--even-spacing);
-      color: var(--even-gray);
+      font-weight: 500;
+      color: var(--color-text-dim);
     }
 
     .nearby-spinner {
-      width: 16px;
-      height: 16px;
-      border: 2px solid var(--even-divider);
-      border-top-color: var(--even-black);
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--color-border);
+      border-top-color: var(--color-text);
       border-radius: 50%;
-      flex-shrink: 0;
       animation: spin 0.8s linear infinite;
     }
 
     @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
+      to { transform: rotate(360deg); }
     }
 
     .nearby-error {
+      font-family: var(--font-body);
       font-size: 14px;
       line-height: 20px;
-      letter-spacing: var(--even-spacing);
-      color: #c0392b;
-      padding: 8px 0;
+      color: var(--color-negative);
+      background: var(--color-negative-alpha);
+      border: 1px solid rgba(255, 69, 58, 0.2);
+      border-radius: var(--radius-card);
+      padding: 12px 16px;
       text-align: center;
     }
 
     #refresh-nearby {
       background: transparent;
-      color: var(--even-black);
-      border: 1.5px solid var(--even-divider);
-      padding: 10px 16px;
-      font-size: 15px;
-      border-radius: var(--even-radius-btn);
+      color: var(--color-text);
+      border: 1.5px solid var(--color-border);
+      padding: 12px 16px;
+      font-size: 14px;
+      border-radius: var(--radius-btn);
     }
 
     #refresh-nearby:hover {
-      background: var(--even-input-bg);
-      opacity: 1;
-    }
-
-    /* ── Results ────────────────────────────────────────── */
-    .station-block {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .station-block+.station-block {
-      border-top: 1px solid var(--even-divider);
-      padding-top: 16px;
-    }
-
-    .station-id {
-      font-weight: 400;
-      font-size: 20px;
-      line-height: 26px;
-      letter-spacing: var(--even-spacing);
-      color: var(--even-black);
-    }
-
-    .wx-label {
-      font-weight: 400;
-      font-size: 14px;
-      line-height: 18px;
-      letter-spacing: var(--even-spacing);
-      color: var(--even-gray);
-      text-transform: uppercase;
-    }
-
-    pre {
-      font-family: 'FK Grotesk Neue', 'SF Mono', 'Menlo', monospace;
-      font-weight: 400;
-      font-size: 15px;
-      line-height: 20px;
-      letter-spacing: -0.01em;
-      color: var(--even-black);
-      background: var(--even-input-bg);
-      padding: 12px 16px;
-      border-radius: var(--even-radius-card);
-      white-space: pre-wrap;
-      word-break: break-word;
+      background: rgba(35, 35, 35, 0.04);
+      border-color: var(--color-text-dim);
     }
 
     .hidden {
