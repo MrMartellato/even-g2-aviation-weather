@@ -186,15 +186,7 @@ function getGpsPosition(): Promise<GeolocationPosition> {
 }
 
 async function fetchUserLocation(): Promise<UserLocation> {
-  // Try GPS first
-  try {
-    const pos = await getGpsPosition();
-    const lat = Math.round(pos.coords.latitude * 100) / 100;
-    const lon = Math.round(pos.coords.longitude * 100) / 100;
-    return { lat, lon, label: `${lat.toFixed(2)}°, ${lon.toFixed(2)}°` };
-  } catch (gpsErr) {
-    console.warn('GPS unavailable, using IP geolocation:', gpsErr);
-  }
+  console.log('GPS Geolocation disabled for WebView permission compatibility testing.');
 
   if (isDev) {
     // Dev: use the Vite proxy which preserves the real client IP
