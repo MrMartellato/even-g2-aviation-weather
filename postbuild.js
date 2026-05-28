@@ -14,7 +14,7 @@ let content = fs.readFileSync(filePath, 'utf8');
 const target = '<script type="module" crossorigin>';
 if (content.includes(target)) {
   console.log(`Found target ES module script tag. Replacing...`);
-  content = content.replace(target, '<script>');
+  content = content.replace(target, '<script defer>');
   
   // Also clean up any modulepreload polyfill that Vite injects, which is not needed in a single file
   // and might cause issues in a non-module environment.
@@ -26,11 +26,11 @@ if (content.includes(target)) {
   }
 
   fs.writeFileSync(filePath, content, 'utf8');
-  console.log('Successfully prepared index.html for local webview deployment (stripped ES Module tag and polyfill).');
+  console.log('Successfully prepared index.html for local webview deployment (stripped ES Module tag, added defer, and stripped polyfill).');
 } else {
   console.log('Warning: Target ES module script tag not found. Checking if already replaced.');
-  if (content.includes('<script>')) {
-    console.log('Already inlined and stripped.');
+  if (content.includes('<script defer>')) {
+    console.log('Already inlined and deferred.');
   } else {
     console.log('Could not find any script tag in dist/index.html');
   }

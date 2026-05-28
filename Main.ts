@@ -977,10 +977,43 @@ async function main() {
       }
     });
 
-  } catch {
+  } catch (err) {
+    console.error('Initialization error:', err);
     setStatus('Use the browser to view weather');
-    (document.getElementById('station-1') as HTMLInputElement).value = currentStations1.join(', ');
+    const input = document.getElementById('station-1') as HTMLInputElement;
+    if (input) input.value = currentStations1.join(', ');
   }
 }
 
-main();
+// Global unhandled error handler to display on screen for easy debugging
+window.onerror = function (message, source, lineno, colno, error) {
+  console.error('[Global Error]', message, 'at', source, 'line', lineno);
+  const statusEl = document.getElementById('status');
+  if (statusEl) {
+    statusEl.textContent = `Crash: ${message} (line ${lineno})`;
+    statusEl.style.color = 'red';
+  }
+  return false;
+};
+
+// Bulletproof app starter that waits for the DOM to be fully parsed
+function startApp(): void {
+  if (!document.getElementById('status')) {
+    // If DOM elements aren't ready yet, wait and try again
+    document.addEventListener('DOMContentLoaded', startApp);
+    setTimeout(startApp, 50);
+    return;
+  }
+  
+  main().catch((err) => {
+    console.error('App main crashed:', err);
+    const statusEl = document.getElementById('status');
+    if (statusEl) {
+      statusEl.textContent = `Crash: ${err instanceof Error ? err.message : String(err)}`;
+      statusEl.style.color = 'red';
+    }
+  });
+}
+
+startApp();
+

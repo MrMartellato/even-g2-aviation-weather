@@ -4,6 +4,14 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 export default defineConfig({
   base: './',
   plugins: [viteSingleFile()],
+  build: {
+    rollupOptions: {
+      output: {
+        format: 'iife',
+        inlineDynamicImports: true,
+      },
+    },
+  },
   server: {
     proxy: {
       '/api/metar': {
@@ -34,4 +42,5 @@ export default defineConfig({
     },
   },
 });
+
 
