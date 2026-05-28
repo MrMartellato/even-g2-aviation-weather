@@ -857,8 +857,10 @@ async function main() {
     const checkbox = document.getElementById(`include-taf-${tab}`) as HTMLInputElement;
 
     btn.addEventListener('click', async () => {
-      const stations = parseStations(input.value);
-      if (stations.length === 0) {
+      const trimmed = input.value.trim();
+      const stations = parseStations(trimmed);
+      
+      if (trimmed !== '' && stations.length === 0) {
         setStatus('Enter at least one valid ICAO station code (3–4 characters)');
         return;
       }
